@@ -131,5 +131,7 @@ pip-selfcheck.json
 
 # Other
 database.db
+geckodriver.log 
+err.log
 
 # End of https://www.gitignore.io/api/python

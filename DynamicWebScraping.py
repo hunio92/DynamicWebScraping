@@ -1,27 +1,44 @@
 # pip install -U selenium -> install selenium
-# https://chromedriver.storage.googleapis.com/index.html?path=2.42/ -> ChromeDriver Win/Linux
+# https://github.com/mozilla/geckodriver/releases/download/v0.22.0/geckodriver-v0.22.0-linux32.tar.gz -> webdriver linux
+# https://download.mozilla.org/?product=firefox-latest-ssl&os=linux&lang=en-GB -> firefox 32bit
 
-from selenium import webdriver  
-from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup  
-from store import Db 
-import time, sys
+from selenium import webdriver
+from bs4 import BeautifulSoup
+from store import Db
+import time, sys, os, sqlite3
+from datetime import datetime
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+from selenium.common.exceptions import WebDriverException
 
-# Set headless chrome
-chrome_options = Options()    
-chrome_options.add_argument("--headless")  
-chrome_options.add_argument("--disable-gpu") 
-driver = webdriver.Chrome(chrome_options=chrome_options)
+
+def log(e):
+    with open("err.log", "a") as f:
+        f.write(str(datetime.now()))
+        f.write("  -  ")
+        f.write(str(e))
+        f.write("\n")
+ 
+# Set headless firefox
+os.environ['MOZ_HEADLESS'] = '1'
+profile = webdriver.FirefoxProfile()
+options = Options()
+options.profile = profile
+binary = FirefoxBinary('C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe')
+profile = webdriver.FirefoxProfile()
+driver = webdriver.Firefox(firefox_binary=binary, options=options)
+
 # Create database
 DATABASE_FILE = 'database.db'
 database = Db(DATABASE_FILE)
-  
-while(True): 
-    # Open database
-    database.openDB(DATABASE_FILE)
 
+while(True):
     # Get page content
-    driver.get("http://www.retroradio.hu/")
+    try:
+        driver.get("http://www.retroradio.hu/")
+    except WebDriverException as e:
+        log(e)
+
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, features="html.parser")
 
@@ -29,12 +46,17 @@ while(True):
     artist = soup.find("span", {"class": "js-radio-player-current-artist"})
     title = soup.find("span", {"class": "js-radio-player-current-title"})
 
-    # Add song to database
-    database.addSong(artist.text, title.text)
+    try:
+        # Open database
+        database.openDB(DATABASE_FILE)
 
-    # Close database
-    database.closeDB()
+        # Add song to database
+        database.addSong(artist.text, title.text)
+
+        # Close database
+        database.closeDB()
+    except sqlite3.Error as e:
+        log(e)
 
     # Sleep 100s and get new content after
-    time.sleep(100) 
-
+    time.sleep(100)
